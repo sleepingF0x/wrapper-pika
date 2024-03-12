@@ -25,9 +25,11 @@ from w_pika.RabbitConsumerMiddleware import (
     call_middlewares,
 )
 
+LOGGER = logging.getLogger(__name__)
+
 # (queue_name, dlq_name, method, props, body, exception)
 MessageErrorCallback = Callable[
-    [str, Union[str, None], spec.Basic.Deliver, spec.BasicProperties, str, Exception],
+    [str, Union[str, None], spec.Basic.Deliver, spec.BasicProperties, Union[str, bytes], Exception],
     Any,
 ]
 
@@ -45,7 +47,6 @@ class RabbitMQ:
 
     get_connection: Callable[[], BlockingConnection]
     consumers: Set[Callable[[], None]]
-    # development: bool
 
     body_parser: Callable
     msg_parser: Callable
@@ -66,7 +67,6 @@ class RabbitMQ:
             body_parser: Union[Callable, None] = None,
             msg_parser: Union[Callable, None] = None,
             queue_params: QueueParams = QueueParams(),
-            # development: Union[bool, None] = None,
             on_message_error_callback: Union[MessageErrorCallback, None] = None,
             middlewares: Union[List[RabbitConsumerMiddleware], None] = None,
             exchange_params: ExchangeParams = ExchangeParams(),
@@ -84,7 +84,6 @@ class RabbitMQ:
             queue_prefix,
             body_parser,
             msg_parser,
-            # development,
             on_message_error_callback,
         )
 
@@ -136,20 +135,15 @@ class RabbitMQ:
         for consumer in self.consumers:
             consumer()
 
-    # @property
-    # def _logger(self) -> logging.Logger:
-    #     assert self.app, "RabbitMQ not initialized, you must call init_app."
-    #     return self.app.logger  # type: ignore
-
     def _validate_connection(self):
         try:
             connection = self.get_connection()
             if connection.is_open:
-                logging.info("Connected to RabbitMQ")
+                LOGGER.info("Connected to RabbitMQ")
                 connection.close()
         except Exception as error:  # pylint: disable=broad-except
-            logging.error("Invalid RabbitMQ connection")
-            logging.error(error.__class__.__name__)
+            LOGGER.error("Invalid RabbitMQ connection")
+            LOGGER.error(error.__class__.__name__)
 
     def _build_queue_name(self, func: Callable):
         """Builds queue name from function name"""
@@ -176,7 +170,6 @@ class RabbitMQ:
 
         def decorator(f):
             # ignore flask default reload when on debug mode
-            # if not self.development:
             nonlocal props_needed
             if props_needed is None:
                 f_signature = inspect.signature(f).parameters
@@ -324,7 +317,7 @@ class RabbitMQ:
             exclusive=self.queue_params.exclusive,
             arguments=exchange_args,
         )
-        logging.info(f"Declaring Queue: {queue_name}")
+        LOGGER.info(f"Declaring Queue: {queue_name}")
 
         # Bind queue to exchange
         routing_keys = routing_key if isinstance(routing_key, list) else [routing_key]
@@ -348,8 +341,6 @@ class RabbitMQ:
                 props: spec.BasicProperties,
                 body: bytes,
         ):
-            decoded_body = body.decode()
-
             try:
                 # Fetches original message routing_key from headers if it has been dead-lettered
                 routing_key = method.routing_key
@@ -359,7 +350,7 @@ class RabbitMQ:
                     routing_key = x_death_props.get("routing-keys")[0]
 
                 message = RabbitConsumerMessage(
-                    routing_key, body, self.body_parser(decoded_body), method, props
+                    routing_key, body, self.body_parser(body), method, props
                 )
                 call_middlewares(
                     message,
@@ -370,8 +361,8 @@ class RabbitMQ:
                     # ack message after fn was ran
                     channel.basic_ack(method.delivery_tag)
             except Exception as err:  # pylint: disable=broad-except
-                logging.error(f"ERROR IN {queue_name}: {err}")
-                logging.exception(err)
+                LOGGER.error(f"ERROR IN {queue_name}: {err}")
+                LOGGER.exception(err)
 
                 try:
                     if not auto_ack:
@@ -385,7 +376,7 @@ class RabbitMQ:
                             dead_letter_queue_name,
                             method,
                             props,
-                            decoded_body,
+                            body,
                             err,
                         )
 
@@ -396,7 +387,7 @@ class RabbitMQ:
         try:
             channel.start_consuming()
         except Exception as err:
-            logging.error(err)
+            LOGGER.error(err)
             channel.stop_consuming()
             connection.close()
 
@@ -452,8 +443,8 @@ class RabbitMQ:
 
             channel.close()
         except Exception as err:
-            logging.error("Error while sending message")
-            logging.error(err)
+            LOGGER.error("Error while sending message")
+            LOGGER.error(err)
 
             raise AMQPConnectionError from err
 

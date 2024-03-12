@@ -18,7 +18,6 @@ Set the following environment variables or set them in your app dict config :
 - MQ_URL=Your MQ URL following [this format](https://pika.readthedocs.io/en/stable/examples/using_urlparameters.html)
 - MQ_EXCHANGE_TYPE=Your exchange type
 - MQ_EXCHANGE_DURABLE=exchange is durable or not
-- MQ_QUEUE_PREFIX=queue prefix
 - MQ_DELIMITER=default is `.`
 
 ## Basic Example
