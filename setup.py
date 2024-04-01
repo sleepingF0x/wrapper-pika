@@ -1,10 +1,10 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 from w_pika import __version__
 
 
 setup(
     name="wrapper_pika",
-    packages=["w_pika"],
+    packages=find_packages(),
     version=__version__,
     license="MIT",
     description="Adapter for RabbitMQ pika",
