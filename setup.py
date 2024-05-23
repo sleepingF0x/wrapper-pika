@@ -27,4 +27,11 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
     ],
+    project_urls={
+        'Home': 'https://github.com/sleepingF0x/wrapper-pika',
+        'Documentation': 'https://github.com/sleepingF0x/wrapper-pika/blob/master/README.MD',
+        'Issue Tracker': 'https://github.com/sleepingF0x/wrapper-pika/issues',
+        'Source': 'https://github.com/sleepingF0x/wrapper-pika',
+        'Download': 'https://pypi.org/project/wrapper-pika',
+    }
 )
