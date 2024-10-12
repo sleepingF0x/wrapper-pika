@@ -401,8 +401,9 @@ class RabbitMQ:
             message_version: str = "v1.0.0",
             **properties,
     ):
+        connection = self.get_connection()
         try:
-            channel = self.get_connection().channel()
+            channel = connection.channel()
 
             channel.exchange_declare(
                 exchange=self.exchange_name,
@@ -441,12 +442,14 @@ class RabbitMQ:
                 properties=spec.BasicProperties(**properties),
             )
 
-            channel.close()
         except Exception as err:
             LOGGER.error("Error while sending message")
             LOGGER.error(err)
 
             raise AMQPConnectionError from err
+
+        finally:
+            connection.close()
 
     def send(
             self,
